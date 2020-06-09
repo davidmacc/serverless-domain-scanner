@@ -1,0 +1,33 @@
+{
+    "Comment": "Scans a domain (resolves IP, matches known provider ranges, saves result)",
+    "TimeoutSeconds": 60,
+    "StartAt": "ResolveDomainIP",
+    "States": {
+      "ResolveDomainIP": {
+        "Type": "Task",
+        "Resource": "${ResolveIPFunction}",
+        "ResultPath": "$.ipaddress",
+        "Next": "LookupProvder",
+        "Catch": [
+          {
+            "ErrorEquals": [
+              "Exception"
+            ],
+            "ResultPath": "$.error-info",
+            "Next": "WriteResult"
+          }
+        ]
+      },
+      "LookupProvder": {
+        "Type": "Task",
+        "Resource": "${FindIPProviderFunction}",
+        "ResultPath": "$.provider",
+        "Next": "WriteResult"
+      },
+      "WriteResult": {
+        "Type": "Task",
+        "Resource": "${SaveScanResultFunction}",
+        "End": true
+      }
+    }
+  }

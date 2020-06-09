@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: python3.8
+    Timeout: 60
+    MemorySize: 256
+    
+Resources:
+  IngestDomainFileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/ingestDomainFile
+      Handler: ingestDomainFile.lambda_handler
+      Environment:
+        Variables:
+          DOMAINS_TABLE: !Ref DomainsTable
+      Policies:
+        - S3ReadPolicy:
+            BucketName: '*'
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DomainsTable
+      Events:
+        FileUploaded:
+          Type: S3
+          Properties:
+            Bucket: !Ref DomainInputBucket
+            Events: s3:ObjectCreated:*
+   
+  ProcessDomainStreamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/processDomainStream
+      Handler: processDomainStream.lambda_handler  
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref DomainScanStateMachine
+      Policies:
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt DomainScanStateMachine.Name
+      Events:
+        DynamoDBEvent:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt DomainsTable.StreamArn
+            StartingPosition: LATEST
+            ParallelizationFactor: 3
+          
+  ResolveIPFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/resolveIP
+      Handler: resolveIP.lambda_handler
+  
+  FindIPProviderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/findIPProvider
+      Handler: findIPProvider.lambda_handler
+      Environment:
+        Variables:
+          IP_RANGES_TABLE: !Ref IPRangesTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref IPRangesTable
+
+  SaveScanResultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/saveScanResult
+      Handler: saveScanResult.lambda_handler  
+      Environment:
+        Variables:
+          DOMAINS_TABLE: !Ref DomainsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DomainsTable
+
+  DomainScanStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/domain-scanner.asl.json
+      DefinitionSubstitutions:
+        ResolveIPFunction: !GetAtt ResolveIPFunction.Arn
+        FindIPProviderFunction: !GetAtt FindIPProviderFunction.Arn
+        SaveScanResultFunction: !GetAtt SaveScanResultFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ResolveIPFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FindIPProviderFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SaveScanResultFunction
+
+  DomainsTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: domainName
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: domainName
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
+  IPRangesTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: cidr
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: cidr
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  DomainInputBucket:
+    Type: AWS::S3::Bucket
+
+Outputs:
+  DomainsTableName:
+    Value: !Ref DomainsTable
+  IPRangesTableName:
+    Value: !Ref IPRangesTable
+  DomainInputBucketName:
+    Value: !Ref DomainInputBucket
