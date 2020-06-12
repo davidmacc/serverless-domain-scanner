@@ -14,7 +14,7 @@ for item in data['Items']:
 
 
 def lambda_handler(event, context):
-    ip = ipaddress.ip_address(event['ipaddress'])
+    ip = ipaddress.ip_address(event['ipAddress'])
     for iprange in ipranges:
         if ip in iprange['cidr']:
             return iprange['provider']

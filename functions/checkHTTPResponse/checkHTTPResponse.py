@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 def lambda_handler(event, context):
 
-    domain = event['domain']
+    domain = event['domain'].lower()
     url = 'https://' + domain
     result = {}
     try:
@@ -12,9 +12,9 @@ def lambda_handler(event, context):
         result['status'] = response.status_code
         if ('location' in response.headers):
             redirectUrl = response.headers['location']
-            redirectHost = urlparse(redirectUrl).netloc
-            result['redirectsTo'] = redirectHost
+            redirectDomain = urlparse(redirectUrl).netloc.lower()
+            result['redirectsToDomain'] = redirectDomain
     except:
-        result['status'] = 'ERR_NORESPONSE'
+        result['status'] = 'ERR_NO_RESPONSE'
 
     return result

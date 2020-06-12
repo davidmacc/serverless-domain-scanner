@@ -15,12 +15,12 @@ Resources:
       Handler: ingestDomainFile.lambda_handler
       Environment:
         Variables:
-          DOMAINS_TABLE: !Ref DomainsTable
+          DOMAINS_TABLE: !Ref DomainTable
       Policies:
         - S3ReadPolicy:
             BucketName: '*'
         - DynamoDBCrudPolicy:
-            TableName: !Ref DomainsTable
+            TableName: !Ref DomainTable
       Events:
         FileUploaded:
           Type: S3
@@ -43,9 +43,9 @@ Resources:
         DynamoDBEvent:
           Type: DynamoDB
           Properties:
-            Stream: !GetAtt DomainsTable.StreamArn
+            Stream: !GetAtt DomainTable.StreamArn
             StartingPosition: LATEST
-            ParallelizationFactor: 3
+            ParallelizationFactor: 5
           
   ResolveIPFunction:
     Type: AWS::Serverless::Function
@@ -71,6 +71,18 @@ Resources:
       CodeUri: functions/checkHTTPResponse
       Handler: checkHTTPResponse.lambda_handler  
 
+  ScanRedirectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/scanRedirect
+      Handler: scanRedirect.lambda_handler  
+      Environment:
+        Variables:
+          DOMAINS_TABLE: !Ref DomainTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DomainTable
+
   SaveScanResultFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -78,20 +90,22 @@ Resources:
       Handler: saveScanResult.lambda_handler  
       Environment:
         Variables:
-          DOMAINS_TABLE: !Ref DomainsTable
+          DOMAINS_TABLE: !Ref DomainTable
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref DomainsTable
+            TableName: !Ref DomainTable
 
   DomainScanStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: statemachine/domain-scanner.asl.json
+      Type: EXPRESS
       DefinitionSubstitutions:
         ResolveIPFunction: !GetAtt ResolveIPFunction.Arn
         FindIPProviderFunction: !GetAtt FindIPProviderFunction.Arn
-        SaveScanResultFunction: !GetAtt SaveScanResultFunction.Arn
         CheckHTTPResponseFunction: !GetAtt CheckHTTPResponseFunction.Arn
+        ScanRedirectFunction: !GetAtt ScanRedirectFunction.Arn
+        SaveScanResultFunction: !GetAtt SaveScanResultFunction.Arn
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref ResolveIPFunction
@@ -100,9 +114,11 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref CheckHTTPResponseFunction
         - LambdaInvokePolicy:
+            FunctionName: !Ref ScanRedirectFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref SaveScanResultFunction
 
-  DomainsTable:
+  DomainTable:
     Type: AWS::DynamoDB::Table
     Properties: 
       AttributeDefinitions: 
@@ -130,8 +146,8 @@ Resources:
     Type: AWS::S3::Bucket
 
 Outputs:
-  DomainsTableName:
-    Value: !Ref DomainsTable
+  DomainTableName:
+    Value: !Ref DomainTable
   IPRangesTableName:
     Value: !Ref IPRangesTable
   DomainInputBucketName:

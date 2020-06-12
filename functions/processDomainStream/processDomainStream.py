@@ -14,10 +14,9 @@ def lambda_handler(event, context):
             if (not ('lastUpdated' in item)):
                 eventid = record['eventID']
                 domain = item['domainName']['S']
-                print(f"Processing domain '{domain}'")
-                response = client.start_execution(
+                execution = client.start_execution(
                     stateMachineArn=stateMachineARN,
                     name=eventid,
                     input=json.dumps({'domain': domain})
                 )
-                print(f"Step Function response: {response}")
+                print(f"Processing domain '{domain}' - StepFunction execution: {execution}")

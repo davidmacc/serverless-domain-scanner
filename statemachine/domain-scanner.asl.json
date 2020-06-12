@@ -1,13 +1,13 @@
 {
-    "Comment": "Scans a domain (resolves IP, matches known provider ranges, saves result)",
+    "Comment": "Scans a domain (Resolves domain IP, matches known provider ranges, etc. and saves result)",
     "TimeoutSeconds": 60,
     "StartAt": "ResolveDomainIP",
     "States": {
       "ResolveDomainIP": {
         "Type": "Task",
         "Resource": "${ResolveIPFunction}",
-        "ResultPath": "$.ipaddress",
-        "Next": "ScanDomain",
+        "ResultPath": "$.ipAddress",
+        "Next": "AnalyzeDomain",
         "Catch": [
           {
             "ErrorEquals": [
@@ -18,7 +18,7 @@
           }
         ]
       },
-      "ScanDomain": {
+      "AnalyzeDomain": {
         "Type": "Parallel",
         "Branches": [
           {
@@ -27,7 +27,7 @@
               "LookupProvider": {
                 "Type": "Task",
                 "Resource": "${FindIPProviderFunction}",
-                "ResultPath": "$.provider",
+                "ResultPath": "$.ipProvider",
                  "End": true
               }
             }
@@ -39,7 +39,13 @@
                 "Type": "Task",
                 "Resource": "${CheckHTTPResponseFunction}",
                 "ResultPath": "$.httpResponse",
-                 "End": true
+                "Next": "ScanRedirect"
+              },
+              "ScanRedirect": {
+                "Type": "Task",
+                "Resource": "${ScanRedirectFunction}",
+                "ResultPath": null,
+                "End": true
               }
             }
           }
@@ -50,8 +56,8 @@
         "Type": "Pass",
         "Parameters": {
           "domain.$": "$[0].domain",
-          "ipaddress.$": "$[0].ipaddress",
-          "provider.$": "$[0].provider",
+          "ipAddress.$": "$[0].ipAddress",
+          "ipProvider.$": "$[0].ipProvider",
           "httpResponse.$": "$[1].httpResponse"
         },
         "Next": "WriteResult"

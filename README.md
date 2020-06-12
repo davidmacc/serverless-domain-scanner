@@ -10,7 +10,7 @@ sam deploy --guided
 
 Review deployment outputs:
 * IPRangesTableName
-* DomainsTableName
+* DomainTableName
 * DomainInputBucketName
 
 ## Import vendor IPs
@@ -27,7 +27,7 @@ python import-ip-ranges.py
 aws s3 cp ./data/domain-lists/alexa100.txt s3://[DomainInputBucketName]
 ```
 
-See results in DynamoDB [DomainsTableName]
+See results in DynamoDB [DomainTableName]
 
 
 ## --notes--
