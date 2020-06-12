@@ -7,7 +7,7 @@
         "Type": "Task",
         "Resource": "${ResolveIPFunction}",
         "ResultPath": "$.ipaddress",
-        "Next": "LookupProvder",
+        "Next": "ScanDomain",
         "Catch": [
           {
             "ErrorEquals": [
@@ -18,10 +18,42 @@
           }
         ]
       },
-      "LookupProvder": {
-        "Type": "Task",
-        "Resource": "${FindIPProviderFunction}",
-        "ResultPath": "$.provider",
+      "ScanDomain": {
+        "Type": "Parallel",
+        "Branches": [
+          {
+            "StartAt": "LookupProvider",
+            "States": {
+              "LookupProvider": {
+                "Type": "Task",
+                "Resource": "${FindIPProviderFunction}",
+                "ResultPath": "$.provider",
+                 "End": true
+              }
+            }
+          },
+          {
+            "StartAt": "CheckHTTPResponse",
+            "States": {
+              "CheckHTTPResponse": {
+                "Type": "Task",
+                "Resource": "${CheckHTTPResponseFunction}",
+                "ResultPath": "$.httpResponse",
+                 "End": true
+              }
+            }
+          }
+        ],
+        "Next": "AggregateResults"
+      },
+      "AggregateResults": {
+        "Type": "Pass",
+        "Parameters": {
+          "domain.$": "$[0].domain",
+          "ipaddress.$": "$[0].ipaddress",
+          "provider.$": "$[0].provider",
+          "httpResponse.$": "$[1].httpResponse"
+        },
         "Next": "WriteResult"
       },
       "WriteResult": {

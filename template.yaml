@@ -65,6 +65,12 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref IPRangesTable
 
+  CheckHTTPResponseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/checkHTTPResponse
+      Handler: checkHTTPResponse.lambda_handler  
+
   SaveScanResultFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -85,11 +91,14 @@ Resources:
         ResolveIPFunction: !GetAtt ResolveIPFunction.Arn
         FindIPProviderFunction: !GetAtt FindIPProviderFunction.Arn
         SaveScanResultFunction: !GetAtt SaveScanResultFunction.Arn
+        CheckHTTPResponseFunction: !GetAtt CheckHTTPResponseFunction.Arn
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref ResolveIPFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref FindIPProviderFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CheckHTTPResponseFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref SaveScanResultFunction
 
