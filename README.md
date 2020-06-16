@@ -1,5 +1,8 @@
 # serverless-domain-scanner
 
+
+![alt text](/domainscanner.png)
+
 ## Deploy SAM stack
 
 ```bash
